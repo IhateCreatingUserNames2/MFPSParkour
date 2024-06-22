@@ -18,6 +18,7 @@ namespace FC_ParkourSystem
         private bl_PlayerNetwork playerNetwork;
         private bl_PlayerReferences playerReferences;
         private Camera playerCamera;
+        private PlayerState lastBodyState;
 
         public bool UseRootMotion { get; set; } = false;
 
@@ -138,6 +139,9 @@ namespace FC_ParkourSystem
             {
                 HandleDrop();
             }
+
+            // Update the BodyState parameter based on the player's current state
+            UpdateBodyState();
         }
 
         private void MoveCharacter(float horizontal, float vertical, bool sprint)
@@ -162,6 +166,7 @@ namespace FC_ParkourSystem
             {
                 Animator.SetTrigger("Jump");
                 parkourController.VerticalJump();
+                firstPersonController.State = PlayerState.Jumping; // Update state to Jumping
             }
         }
 
@@ -201,11 +206,13 @@ namespace FC_ParkourSystem
                         {
                             Animator.SetFloat("freeHang", 0);
                             StartCoroutine(climbController.JumpToLedge(currentPoint.transform, "DropToHang", 0.50f, 0.90f, rotateToLedge: true, matchStart: AvatarTarget.LeftFoot));
+                            firstPersonController.State = PlayerState.Climbing; // Update state to Climbing
                         }
                         else
                         {
                             Animator.SetFloat("freeHang", 1);
                             StartCoroutine(climbController.JumpToLedge(currentPoint.transform, "DropToFreeHang", 0.50f, 0.89f, rotateToLedge: true, matchStart: AvatarTarget.LeftFoot));
+                            firstPersonController.State = PlayerState.Climbing; // Update state to Climbing
                         }
                     }
                 }
@@ -226,6 +233,8 @@ namespace FC_ParkourSystem
             {
                 playerRagdoll.SetActiveRagdollPhysics(false);
             }
+            // Re-enable upper body layer
+            Animator.SetLayerWeight(1, 1);
         }
 
         public void OnStartParkourAction()
@@ -241,6 +250,8 @@ namespace FC_ParkourSystem
             {
                 playerRagdoll.SetActiveRagdollPhysics(true);
             }
+            // Disable upper body layer
+            Animator.SetLayerWeight(1, 0);
         }
 
         public IEnumerator HandleVerticalJump()
@@ -248,8 +259,60 @@ namespace FC_ParkourSystem
             if (firstPersonController != null && firstPersonController.isGrounded)
             {
                 firstPersonController.DoJump();
+                firstPersonController.State = PlayerState.Jumping; // Update state to Jumping
             }
             yield break;
+        }
+
+        private void UpdateBodyState()
+        {
+            switch (firstPersonController.State)
+            {
+                case PlayerState.Idle:
+                    Animator.SetInteger("BodyState", 0);
+                    break;
+                case PlayerState.Walking:
+                    Animator.SetInteger("BodyState", 1);
+                    break;
+                case PlayerState.Running:
+                    Animator.SetInteger("BodyState", 2);
+                    break;
+                case PlayerState.Crouching:
+                    Animator.SetInteger("BodyState", 3);
+                    break;
+                case PlayerState.Jumping:
+                    Animator.SetInteger("BodyState", 4);
+                    break;
+                case PlayerState.Climbing:
+                    Animator.SetInteger("BodyState", 5);
+                    break;
+                case PlayerState.Sliding:
+                    Animator.SetInteger("BodyState", 6);
+                    break;
+                case PlayerState.Dropping:
+                    Animator.SetInteger("BodyState", 7);
+                    break;
+                case PlayerState.Gliding:
+                    Animator.SetInteger("BodyState", 8);
+                    break;
+                case PlayerState.InVehicle:
+                    Animator.SetInteger("BodyState", 9);
+                    break;
+                case PlayerState.Stealth:
+                    Animator.SetInteger("BodyState", 10);
+                    break;
+                // Add other states as needed
+                default:
+                    Animator.SetInteger("BodyState", 0);
+                    break;
+            }
+
+            Debug.Log($"Updated BodyState to {firstPersonController.State} ({Animator.GetInteger("BodyState")})");
+        }
+
+        private bool OnEnterPlayerState(PlayerState state)
+        {
+            return firstPersonController.State == state && lastBodyState != state;
         }
     }
 }
