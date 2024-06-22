@@ -205,18 +205,33 @@ namespace FC_ParkourSystem
                         if (climbController.CheckWall(currentPoint).Value.isWall)
                         {
                             Animator.SetFloat("freeHang", 0);
-                            StartCoroutine(climbController.JumpToLedge(currentPoint.transform, "DropToHang", 0.50f, 0.90f, rotateToLedge: true, matchStart: AvatarTarget.LeftFoot));
+                            StartCoroutine(MoveToTarget(currentPoint.transform, "DropToHang", 0.50f, 0.90f, rotateToLedge: true, matchStart: AvatarTarget.LeftFoot));
                             firstPersonController.State = PlayerState.Climbing; // Update state to Climbing
                         }
                         else
                         {
                             Animator.SetFloat("freeHang", 1);
-                            StartCoroutine(climbController.JumpToLedge(currentPoint.transform, "DropToFreeHang", 0.50f, 0.89f, rotateToLedge: true, matchStart: AvatarTarget.LeftFoot));
+                            StartCoroutine(MoveToTarget(currentPoint.transform, "DropToFreeHang", 0.50f, 0.89f, rotateToLedge: true, matchStart: AvatarTarget.LeftFoot));
                             firstPersonController.State = PlayerState.Climbing; // Update state to Climbing
                         }
                     }
                 }
             }
+        }
+
+        private IEnumerator MoveToTarget(Transform target, string animationState, float matchStartTime, float matchTargetTime, bool rotateToLedge, AvatarTarget matchStart)
+        {
+            Animator.CrossFade(animationState, 0.1f);
+            while (Animator.GetCurrentAnimatorStateInfo(0).IsName(animationState) == false)
+            {
+                yield return null;
+            }
+            Animator.MatchTarget(target.position, target.rotation, matchStart, new MatchTargetWeightMask(Vector3.one, 1f), matchStartTime, matchTargetTime);
+            while (Animator.IsInTransition(0) || Animator.GetCurrentAnimatorStateInfo(0).normalizedTime < matchTargetTime)
+            {
+                yield return null;
+            }
+            OnEndParkourAction();
         }
 
         private void UpdateCamera()
@@ -233,8 +248,6 @@ namespace FC_ParkourSystem
             {
                 playerRagdoll.SetActiveRagdollPhysics(false);
             }
-            // Re-enable upper body layer
-            Animator.SetLayerWeight(1, 1);
         }
 
         public void OnStartParkourAction()
@@ -250,8 +263,6 @@ namespace FC_ParkourSystem
             {
                 playerRagdoll.SetActiveRagdollPhysics(true);
             }
-            // Disable upper body layer
-            Animator.SetLayerWeight(1, 0);
         }
 
         public IEnumerator HandleVerticalJump()
